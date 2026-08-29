@@ -5,30 +5,14 @@ import TrendChart from '@/components/TrendChart'
 import SpendingBarChart from '@/components/SpendingBarChart'
 import { Poppins } from 'next/font/google'
 import IncomeModal from '@/components/IncomeModal'
-import TimeRangeFilter from '@/components/TimeRangeFilter'
 
-const poppins = Poppins({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
+const poppins = Poppins({ 
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+})
 
-export default async function DashboardOverview({
-  searchParams,
-}: {
-  searchParams: { range?: string }
-}) {
+export default async function DashboardOverview() {
   const supabase = await createClient()
-  const range = searchParams.range || 'monthly'
-
-  // Determine Date Boundaries
-  const now = new Date()
-  let startDate = new Date(0).toISOString() // Default to all time
-  
-  if (range === 'monthly') {
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-  } else if (range === 'weekly') {
-    const firstDay = now.getDate() - now.getDay()
-    startDate = new Date(now.setDate(firstDay)).toISOString()
-  } else if (range === 'daily') {
-    startDate = new Date(now.setHours(0,0,0,0)).toISOString()
-  }
 
   // 1. Fetch Income
   const { data: incomes } = await supabase.from('incomes').select('*')
@@ -43,18 +27,19 @@ export default async function DashboardOverview({
     return sum + item.amount 
   }, 0) || 0
 
-  // 3. Fetch Transactions (Dynamically Filtered by Time Range)
-  let transactionQuery = supabase.from('transactions').select('amount, transaction_date, categories ( group_type )')
-  if (range !== 'all') {
-    transactionQuery = transactionQuery.gte('transaction_date', startDate)
-  }
-  const { data: transactions } = await transactionQuery
+  // 3. Fetch Transactions (Added categories(name) for the Bar Chart)
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const { data: transactions } = await supabase
+    .from('transactions')
+    .select('amount, transaction_date, categories ( name, group_type )')
+    .gte('transaction_date', currentMonthStart)
 
   const getGroup = (cats: any) => {
     if (!cats) return 'needs'
     return Array.isArray(cats) ? cats[0]?.group_type : cats.group_type
   }
 
+  // 50/30/20 Processing
   const spentNeeds = transactions?.filter(t => getGroup(t.categories) === 'needs').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentWants = transactions?.filter(t => getGroup(t.categories) === 'wants').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentSavings = transactions?.filter(t => getGroup(t.categories) === 'savings').reduce((sum, t) => sum + t.amount, 0) || 0
@@ -62,7 +47,19 @@ export default async function DashboardOverview({
   const totalVariableSpent = spentNeeds + spentWants + spentSavings
   const safeToSpend = totalIncome - monthlyFixed - totalVariableSpent
 
-  // 4. Group transactions by date for the Line Graph
+  // 4. Group transactions by Category Name for the Bar Chart
+  const categorySpending = transactions?.reduce((acc: any, t: any) => {
+    const catName = Array.isArray(t.categories) ? (t.categories[0]?.name || 'Uncategorized') : (t.categories?.name || 'Uncategorized')
+    if (!acc[catName]) acc[catName] = 0
+    acc[catName] += t.amount
+    return acc
+  }, {})
+
+  const categoryData = Object.keys(categorySpending || {})
+    .map(name => ({ name, amount: categorySpending[name] }))
+    .sort((a, b) => b.amount - a.amount) // Sort highest spending first
+
+  // 5. Group transactions by date for the Line Graph
   const dailySpending = transactions?.reduce((acc: any, t) => {
     const date = t.transaction_date || new Date().toISOString().split('T')[0]
     if (!acc[date]) acc[date] = 0
@@ -77,15 +74,10 @@ export default async function DashboardOverview({
 
   return (
     <div className={`space-y-8 ${poppins.className}`}>
-      <div className="flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
-        </div>
-        <TimeRangeFilter />
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+        <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
       </div>
-      
-      {/* ... [KEEP THE REST OF YOUR CARD GRID AND CHARTS EXACTLY THE SAME] ... */}
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
@@ -102,26 +94,39 @@ export default async function DashboardOverview({
         </Card>
         
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
-          <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-gray-400 uppercase">Fixed Costs</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-gray-400 uppercase">Fixed Costs (Mo.)</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">${monthlyFixed.toFixed(2)}</div></CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card className="shadow-sm border-gray-200">
-          <CardHeader><CardTitle>Spending</CardTitle></CardHeader>
-          <CardContent><SpendingBarChart needs={spentNeeds} wants={spentWants} savings={spentSavings} /></CardContent>
+          <CardHeader>
+            <CardTitle>Category Spending</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {/* Now passing the specific category data */}
+            <SpendingBarChart data={categoryData} />
+          </CardContent>
         </Card>
 
         <Card className="shadow-sm border-gray-200">
-          <CardHeader><CardTitle>Strategic Allocation</CardTitle></CardHeader>
-          <CardContent><ExpenseChart needs={spentNeeds} wants={spentWants} savings={spentSavings} /></CardContent>
+          <CardHeader>
+            <CardTitle>Strategic Allocation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ExpenseChart needs={spentNeeds} wants={spentWants} savings={spentSavings} />
+          </CardContent>
         </Card>
       </div>
 
       <Card className="shadow-sm border-gray-200 mt-8">
-        <CardHeader><CardTitle>Cash Flow</CardTitle></CardHeader>
-        <CardContent><TrendChart data={trendData} /></CardContent>
+        <CardHeader>
+          <CardTitle>Cash Flow</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrendChart data={trendData} />
+        </CardContent>
       </Card>
     </div>
   )

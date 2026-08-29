@@ -2,22 +2,20 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
-interface SpendingBarChartProps {
-  needs: number;
-  wants: number;
-  savings: number;
+interface CategorySpending {
+  name: string;
+  amount: number;
 }
 
-const COLORS = ['#10b981', '#f59e0b', '#3b82f6'] // Emerald, Amber, Blue
+interface SpendingBarChartProps {
+  data: CategorySpending[];
+}
 
-export default function SpendingBarChart({ needs, wants, savings }: SpendingBarChartProps) {
-  const data = [
-    { name: 'Needs', amount: needs },
-    { name: 'Wants', amount: wants },
-    { name: 'Savings', amount: savings }
-  ]
+// Expanded palette for varied transaction categories
+const COLORS = ['#1c1c1c', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
 
-  if (needs === 0 && wants === 0 && savings === 0) {
+export default function SpendingBarChart({ data }: SpendingBarChartProps) {
+  if (!data || data.length === 0) {
     return <div className="flex items-center justify-center h-64 text-gray-400">No spending data yet.</div>
   }
 
