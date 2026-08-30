@@ -13,13 +13,18 @@ export async function createTransaction(formData: FormData) {
   const transaction_date = formData.get('transaction_date') as string
   const category_id = formData.get('category_id') as string
 
-  await supabase.from('transactions').insert([{
+  const { error } = await supabase.from('transactions').insert([{
     user_id: user.id,
     amount,
     description,
     transaction_date,
     category_id
   }])
+
+  if (error) {
+    console.error('Transaction Error:', error.message)
+    throw new Error(`Failed to create transaction: ${error.message}`)
+  }
 
   // Revalidate everything since transactions affect all dashboards
   revalidatePath('/dashboard/transactions')
@@ -31,8 +36,13 @@ export async function deleteTransaction(formData: FormData) {
   const supabase = await createClient()
   const id = formData.get('id') as string
 
-  await supabase.from('transactions').delete().eq('id', id)
+  const { error } = await supabase.from('transactions').delete().eq('id', id)
   
+  if (error) {
+    console.error('Delete Transaction Error:', error.message)
+    throw new Error(`Failed to delete transaction: ${error.message}`)
+  }
+
   revalidatePath('/dashboard/transactions')
   revalidatePath('/dashboard/budgets')
   revalidatePath('/dashboard')
