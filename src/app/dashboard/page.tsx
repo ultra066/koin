@@ -14,6 +14,20 @@ const poppins = Poppins({
 export default async function DashboardOverview() {
   const supabase = await createClient()
 
+  // Fetch Strategy Settings
+  const { data: { user } } = await supabase.auth.getUser()
+  let settings = { needs_target: 50, wants_target: 30, savings_target: 20 }
+  
+  if (user) {
+    const { data: settingsData } = await supabase
+      .from('user_settings')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+      
+    if (settingsData) settings = settingsData
+  }
+
   // 1. Fetch Income
   const { data: incomes } = await supabase.from('incomes').select('*')
   const totalIncome = incomes?.reduce((sum, i) => sum + i.amount, 0) || 0
@@ -39,7 +53,7 @@ export default async function DashboardOverview() {
     return Array.isArray(cats) ? cats[0]?.group_type : cats.group_type
   }
 
-  // 50/30/20 Processing
+  // 50/30/20 (or Custom Strategy) Processing
   const spentNeeds = transactions?.filter(t => getGroup(t.categories) === 'needs').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentWants = transactions?.filter(t => getGroup(t.categories) === 'wants').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentSavings = transactions?.filter(t => getGroup(t.categories) === 'savings').reduce((sum, t) => sum + t.amount, 0) || 0
@@ -105,7 +119,6 @@ export default async function DashboardOverview() {
             <CardTitle>Category Spending</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* Now passing the specific category data */}
             <SpendingBarChart data={categoryData} />
           </CardContent>
         </Card>
@@ -115,7 +128,15 @@ export default async function DashboardOverview() {
             <CardTitle>Strategic Allocation</CardTitle>
           </CardHeader>
           <CardContent>
-            <ExpenseChart needs={spentNeeds} wants={spentWants} savings={spentSavings} />
+            <ExpenseChart 
+              needs={spentNeeds} 
+              wants={spentWants} 
+              savings={spentSavings} 
+              needsTarget={settings.needs_target}
+              wantsTarget={settings.wants_target}
+              savingsTarget={settings.savings_target}
+              totalIncome={totalIncome}
+            />
           </CardContent>
         </Card>
       </div>

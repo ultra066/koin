@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { Poppins } from 'next/font/google'
 import { deleteBudget, deleteFixedCommitment } from './actions'
 import BudgetModal from '@/components/BudgetModal'
+import BudgetRuleModal from '@/components/BudgetRuleModal'
 
 const poppins = Poppins({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
 
@@ -9,6 +10,15 @@ export default async function UnifiedLedgerPage() {
   const supabase = await createClient()
 
   // Fetch Data
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Fetch Strategy Settings
+  let settings = { needs_target: 50, wants_target: 30, savings_target: 20 }
+  if (user) {
+    const { data: settingsData } = await supabase.from('user_settings').select('*').eq('user_id', user.id).single()
+    if (settingsData) settings = settingsData
+  }
+  
   const { data: fixedCosts } = await supabase.from('fixed_commitments').select('*').order('created_at')
   const { data: categories } = await supabase.from('categories').select('id, name, group_type, monthly_budgets(allocated_amount)').order('name')
   
@@ -59,7 +69,14 @@ export default async function UnifiedLedgerPage() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Master Ledger</h1>
           <p className="text-gray-500 mt-2">Manage your fixed bills and flexible budgets in one place.</p>
         </div>
-        <BudgetModal />
+        <div className="flex items-center">
+          <BudgetRuleModal 
+            initialNeeds={settings.needs_target} 
+            initialWants={settings.wants_target} 
+            initialSavings={settings.savings_target} 
+          />
+          <BudgetModal />
+        </div>
       </div>
 
       {/* The Ledger Table */}

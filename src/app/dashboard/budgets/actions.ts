@@ -47,3 +47,32 @@ export async function deleteFixedCommitment(formData: FormData) {
   await supabase.from('fixed_commitments').delete().eq('id', formData.get('id'))
   revalidatePath('/dashboard/budgets')
 }
+
+export async function updateBudgetStrategy(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const needs = parseInt(formData.get('needs_target') as string)
+  const wants = parseInt(formData.get('wants_target') as string)
+  const savings = parseInt(formData.get('savings_target') as string)
+
+  if (needs + wants + savings !== 100) {
+    throw new Error('Targets must equal exactly 100%')
+  }
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({ 
+      user_id: user.id, 
+      needs_target: needs, 
+      wants_target: wants, 
+      savings_target: savings,
+      updated_at: new Date().toISOString()
+    })
+
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/budgets')
+}
