@@ -6,6 +6,7 @@ import SpendingBarChart from '@/components/SpendingBarChart'
 import { Poppins } from 'next/font/google'
 import IncomeModal from '@/components/IncomeModal'
 import Link from 'next/link'
+import NotificationDropdown from '@/components/NotificationDropdown'
 
 const poppins = Poppins({ 
   weight: ['400', '500', '600', '700'],
@@ -45,7 +46,7 @@ export default async function DashboardOverview() {
   const totalIncome = incomes?.reduce((sum, i) => sum + i.amount, 0) || 0
 
   // 2. Fetch Fixed Commitments
-  const { data: fixed } = await supabase.from('fixed_commitments').select('amount, frequency')
+  const { data: fixed } = await supabase.from('fixed_commitments').select('*')
   const monthlyFixed = fixed?.reduce((sum, item) => {
     if (item.frequency === 'daily') return sum + (item.amount * 30)
     if (item.frequency === 'weekly') return sum + (item.amount * 4)
@@ -57,8 +58,13 @@ export default async function DashboardOverview() {
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const { data: transactions } = await supabase
     .from('transactions')
-    .select('amount, transaction_date, categories ( name, group_type )')
+    .select('category_id, amount, transaction_date, categories ( name, group_type )')
     .gte('transaction_date', currentMonthStart)
+
+  // Fetch categories with monthly budgets for the notification dropdown checks
+  const { data: categories } = await supabase
+    .from('categories')
+    .select('id, name, group_type, monthly_budgets(allocated_amount, period_start)')
 
   const getGroup = (cats: any) => {
     if (!cats) return 'needs'
@@ -71,7 +77,8 @@ export default async function DashboardOverview() {
   const spentSavings = transactions?.filter(t => getGroup(t.categories) === 'savings').reduce((sum, t) => sum + t.amount, 0) || 0
   
   const totalVariableSpent = spentNeeds + spentWants + spentSavings
-  const safeToSpend = totalIncome - monthlyFixed - totalVariableSpent
+  // Only subtract the actual logged transactions so paid bills aren't counted twice
+  const safeToSpend = totalIncome - totalVariableSpent
 
   // 4. Group transactions by Category Name for the Bar Chart
   const categorySpending = transactions?.reduce((acc: any, t: any) => {
@@ -106,16 +113,26 @@ export default async function DashboardOverview() {
           <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
         </div>
         
-        <Link 
-          href="/dashboard/profile" 
-          className="flex items-center justify-center p-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-full shadow-sm transition-all text-gray-600 hover:text-gray-900"
-          title="Profile Settings"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </Link>
+        {/* Header Actions: Notification Bell & Profile Settings */}
+        <div className="flex items-center gap-3">
+          <NotificationDropdown 
+            fixedCosts={fixed || []} 
+            categories={categories || []} 
+            transactions={transactions || []} 
+            userCurrency={userCurrency} 
+          />
+
+          <Link 
+            href="/dashboard/profile" 
+            className="flex items-center justify-center p-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-full shadow-sm transition-all text-gray-600 hover:text-gray-900"
+            title="Profile Settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </Link>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

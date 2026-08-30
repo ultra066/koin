@@ -6,9 +6,27 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createTransaction } from '@/app/dashboard/transactions/actions'
 
-export default function TransactionModal({ categories }: { categories: any[] }) {
+export default function TransactionModal({ 
+  categories = [], 
+  fixedCosts = [] 
+}: { 
+  categories: any[], 
+  fixedCosts?: any[] 
+}) {
   const [isOpen, setIsOpen] = useState(false)
+  const [selectedGroup, setSelectedGroup] = useState<'needs' | 'wants' | 'savings' | 'fixed'>('fixed')
+  const [selectedFixedId, setSelectedFixedId] = useState<string>('')
   const today = new Date().toISOString().split('T')[0]
+
+  // Filter out categories that are actually fixed costs so they don't double up in 'Needs'
+  const filteredCategories = categories?.filter(cat => 
+    cat.group_type === selectedGroup && 
+    !fixedCosts.some(f => f.name.toLowerCase() === cat.name.toLowerCase())
+  ) || []
+
+  // Get data for the silently submitted fixed transaction
+  const selectedFixedBill = fixedCosts.find(f => f.id === selectedFixedId)
+  const matchingCategory = categories.find(c => c.name.toLowerCase() === selectedFixedBill?.name.toLowerCase())
 
   if (!isOpen) {
     return (
@@ -31,33 +49,84 @@ export default function TransactionModal({ categories }: { categories: any[] }) 
 
         <div className="p-5 overflow-y-auto">
           <form action={async (formData) => { await createTransaction(formData); setIsOpen(false); }} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (Merchant/Item)</Label>
-              <Input id="description" name="description" placeholder="e.g., Target, Uber, Jollibee" required />
-            </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount ($)</Label>
-                <Input id="amount" name="amount" type="number" min="0.01" step="0.01" placeholder="45.00" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="transaction_date">Date</Label>
-                <Input id="transaction_date" name="transaction_date" type="date" defaultValue={today} required />
+            {/* Allocation Group Filter Tabs */}
+            <div className="space-y-2">
+              <Label>Allocation Group</Label>
+              <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-lg">
+                {(['needs', 'wants', 'savings', 'fixed'] as const).map((group) => (
+                  <button 
+                    key={group}
+                    type="button"
+                    onClick={() => { setSelectedGroup(group); setSelectedFixedId(''); }} 
+                    className={`py-1.5 text-xs font-semibold rounded-md transition-all uppercase tracking-wider ${selectedGroup === group ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}
+                  >
+                    {group}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="category_id">Budget Category</Label>
-              <select 
-                id="category_id" name="category_id" required defaultValue=""
-                className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c1c1c]"
-              >
-                <option value="" disabled>Select a category...</option>
-                {categories?.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name} ({cat.group_type})</option>
-                ))}
-              </select>
+            {/* Dynamic Inputs based on selected group */}
+            {selectedGroup === 'fixed' ? (
+              <div className="space-y-2">
+                <Label htmlFor="fixed_commitment_id">Select Fixed Bill</Label>
+                <select 
+                  id="fixed_commitment_id" 
+                  required 
+                  value={selectedFixedId}
+                  onChange={(e) => setSelectedFixedId(e.target.value)}
+                  className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c1c1c]"
+                >
+                  <option value="" disabled>Select a fixed bill...</option>
+                  {fixedCosts.map(bill => (
+                    <option key={bill.id} value={bill.id}>{bill.name}</option>
+                  ))}
+                </select>
+                
+                {/* Hidden inputs automatically supply the exact amount and ID to the server */}
+                <input type="hidden" name="description" value={selectedFixedBill?.name || ''} />
+                <input type="hidden" name="amount" value={selectedFixedBill?.amount || 0} />
+                <input type="hidden" name="category_id" value={matchingCategory?.id || ''} />
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (Merchant/Item)</Label>
+                  <Input id="description" name="description" placeholder="e.g., Target, Uber" required />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category_id">Category ({selectedGroup.toUpperCase()})</Label>
+                  <select 
+                    id="category_id" 
+                    name="category_id" 
+                    required 
+                    defaultValue=""
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c1c1c]"
+                  >
+                    <option value="" disabled>Select a category...</option>
+                    {filteredCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Only show the Amount input if it is NOT a fixed cost */}
+              {selectedGroup !== 'fixed' && (
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount ($)</Label>
+                  <Input id="amount" name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required />
+                </div>
+              )}
+              {/* Date Input takes full width if Amount is hidden */}
+              <div className={`space-y-2 ${selectedGroup === 'fixed' ? 'col-span-2' : ''}`}>
+                <Label htmlFor="transaction_date">Date</Label>
+                <Input id="transaction_date" name="transaction_date" type="date" defaultValue={today} required />
+              </div>
             </div>
             
             <div className="flex gap-3 pt-4">
