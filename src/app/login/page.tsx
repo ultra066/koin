@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import { Poppins } from 'next/font/google'
 
 const poppins = Poppins({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
 
-export default function LoginPage() {
+function LoginForm() {
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
@@ -128,10 +128,18 @@ export default function LoginPage() {
         <div className="mt-8 text-center text-sm text-gray-500">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button type="button" onClick={toggleMode} className="font-semibold text-gray-900 hover:underline">
-            {isLogin ? 'Sign sign up' : 'Log in'}
+            {isLogin ? 'Sign up' : 'Log in'}
           </button>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
