@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -130,7 +128,7 @@ export default function LoginPage() {
         <div className="mt-8 text-center text-sm text-gray-500">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
           <button type="button" onClick={toggleMode} className="font-semibold text-gray-900 hover:underline">
-            {isLogin ? 'Sign up' : 'Log in'}
+            {isLogin ? 'Sign sign up' : 'Log in'}
           </button>
         </div>
       </div>
