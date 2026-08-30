@@ -5,6 +5,7 @@ import TrendChart from '@/components/TrendChart'
 import SpendingBarChart from '@/components/SpendingBarChart'
 import { Poppins } from 'next/font/google'
 import IncomeModal from '@/components/IncomeModal'
+import Link from 'next/link'
 
 const poppins = Poppins({ 
   weight: ['400', '500', '600', '700'],
@@ -99,9 +100,22 @@ export default async function DashboardOverview() {
 
   return (
     <div className={`space-y-8 ${poppins.className}`}>
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+          <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
+        </div>
+        
+        <Link 
+          href="/dashboard/profile" 
+          className="flex items-center justify-center p-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-full shadow-sm transition-all text-gray-600 hover:text-gray-900"
+          title="Profile Settings"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </Link>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
