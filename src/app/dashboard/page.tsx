@@ -14,11 +14,13 @@ const poppins = Poppins({
 export default async function DashboardOverview() {
   const supabase = await createClient()
 
-  // Fetch Strategy Settings
+  // Fetch Strategy Settings & Profile Currency
   const { data: { user } } = await supabase.auth.getUser()
   let settings = { needs_target: 50, wants_target: 30, savings_target: 20 }
+  let userCurrency = '$' // Default fallback
   
   if (user) {
+    // Get Budget Rules
     const { data: settingsData } = await supabase
       .from('user_settings')
       .select('*')
@@ -26,6 +28,15 @@ export default async function DashboardOverview() {
       .single()
       
     if (settingsData) settings = settingsData
+
+    // Get Profile Currency
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('currency')
+      .eq('id', user.id)
+      .single()
+
+    if (profileData?.currency) userCurrency = profileData.currency
   }
 
   // 1. Fetch Income
@@ -96,7 +107,7 @@ export default async function DashboardOverview() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-gray-400 uppercase">Balance</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">${safeToSpend.toFixed(2)}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{userCurrency}{safeToSpend.toFixed(2)}</div></CardContent>
         </Card>
 
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
@@ -104,12 +115,12 @@ export default async function DashboardOverview() {
             <CardTitle className="text-xs font-medium text-gray-400 uppercase">Total Income</CardTitle>
             <IncomeModal incomes={incomes || []} />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold">${totalIncome.toFixed(2)}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{userCurrency}{totalIncome.toFixed(2)}</div></CardContent>
         </Card>
         
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-gray-400 uppercase">Fixed Costs (Mo.)</CardTitle></CardHeader>
-          <CardContent><div className="text-2xl font-bold">${monthlyFixed.toFixed(2)}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold">{userCurrency}{monthlyFixed.toFixed(2)}</div></CardContent>
         </Card>
       </div>
 

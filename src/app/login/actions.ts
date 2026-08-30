@@ -12,10 +12,12 @@ export async function login(formData: FormData) {
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) redirect('/login?error=Invalid login credentials')
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect('/dashboard') // <--- Fixed: Route to dashboard after normal logins
 }
 
 export async function signup(formData: FormData) {
@@ -25,14 +27,17 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
   const first_name = formData.get('first_name') as string
 
-  const { error } = await supabase.auth.signUp({
+  // 1. Create the account (This triggers the confirmation email)
+  const { error: signUpError } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { first_name } } // This triggers your SQL function
+    options: { data: { first_name } }
   })
 
-  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  if (signUpError) {
+    redirect(`/login?error=${encodeURIComponent(signUpError.message)}`)
+  }
 
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  // 2. Do NOT log them in. Redirect back with a success message.
+  redirect('/login?message=Check your email to confirm your account.')
 }
