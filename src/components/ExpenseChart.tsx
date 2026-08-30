@@ -28,7 +28,7 @@ export default function ExpenseChart({
   const savingsPercent = targetSavingsAmount > 0 ? (savings / targetSavingsAmount) * 100 : 0
 
   const data = [
-    { name: 'Needs', value: needs, color: '#10b981' }, // Emerald-500
+    { name: 'Needs', value: needs, color: '#10b981' }, // Emerald-500--
     { name: 'Wants', value: wants, color: '#f59e0b' }, // Amber-500
     { name: 'Savings', value: savings, color: '#3b82f6' }, // Blue-500
   ]
