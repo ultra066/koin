@@ -113,7 +113,7 @@ export default async function DashboardOverview() {
           <p className="text-xs sm:text-base text-gray-500 mt-1">Your real-time cash flow and allocation breakdown.</p>
         </div>
         
-        {/* Actions - shrink-0 prevents the buttons from shrinking when the text wraps */}
+        {/* Actions - shrink-0 prevents the buttons from shrinking when the text wraps -  */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 mt-1 sm:mt-0">
           <NotificationDropdown 
             fixedCosts={fixed || []} 
