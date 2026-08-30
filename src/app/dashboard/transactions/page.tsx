@@ -5,81 +5,65 @@ import { deleteTransaction } from './actions'
 
 const poppins = Poppins({ weight: ['400', '500', '600', '700'], subsets: ['latin'] })
 
-export default async function TransactionsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ start_date?: string; end_date?: string }>
-}) {
+export default async function TransactionsPage({ searchParams }: { searchParams: Promise<{ start_date?: string; end_date?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  // Fetch User Currency Symbol
   let userCurrency = '$'
   const { data: profileData } = await supabase.from('profiles').select('currency').eq('id', user.id).single()
   if (profileData?.currency) userCurrency = profileData.currency
 
-  // Resolve search params (Next.js 15+ convention)
   const params = await searchParams
   const startDate = params.start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
   const endDate = params.end_date || new Date().toISOString().split('T')[0]
 
-  // Fetch Categories for the Modal
   const { data: categories } = await supabase.from('categories').select('id, name, group_type').order('name')
-
-  // Fetch Fixed Commitments to pass into the Modal for auto-filling bill amounts
   const { data: fixedCosts } = await supabase.from('fixed_commitments').select('*')
 
-  // Fetch Filtered Transactions
   let query = supabase
     .from('transactions')
     .select('id, amount, description, transaction_date, categories ( name, group_type )')
     .gte('transaction_date', startDate)
-    .lte('transaction_date', endDate + 'T23:59:59') // Include the full end day
+    .lte('transaction_date', endDate + 'T23:59:59')
     .order('transaction_date', { ascending: false })
 
   const { data: transactions } = await query
 
   return (
-    <div className={`space-y-8 ${poppins.className}`}>
-      <div className="flex justify-between items-end">
+    <div className={`space-y-6 sm:space-y-8 ${poppins.className}`}>
+      
+      {/* Mobile Stacked Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Transactions</h1>
-          <p className="text-gray-500 mt-2">Log and filter your personal cash flow history.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Transactions</h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-1">Log and filter your personal cash flow history.</p>
         </div>
-        <TransactionModal categories={categories || []} fixedCosts={fixedCosts || []} />
+        <div className="w-full sm:w-auto">
+          <TransactionModal categories={categories || []} fixedCosts={fixedCosts || []} />
+        </div>
       </div>
 
-      {/* Date Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <form method="GET" className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">From:</label>
-            <input 
-              type="date" 
-              name="start_date" 
-              defaultValue={startDate} 
-              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c1c1c]"
-            />
+      {/* Responsive Date Filter */}
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <form method="GET" className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+            <label className="text-xs sm:text-sm font-medium text-gray-600">From:</label>
+            <input type="date" name="start_date" defaultValue={startDate} className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#1c1c1c] w-full sm:w-auto"/>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-600">To:</label>
-            <input 
-              type="date" 
-              name="end_date" 
-              defaultValue={endDate} 
-              className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1c1c1c]"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 w-full sm:w-auto">
+            <label className="text-xs sm:text-sm font-medium text-gray-600">To:</label>
+            <input type="date" name="end_date" defaultValue={endDate} className="border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#1c1c1c] w-full sm:w-auto"/>
           </div>
-          <button type="submit" className="bg-[#1c1c1c] text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-black transition-colors">
+          <button type="submit" className="bg-[#1c1c1c] text-white px-4 py-2 sm:py-1.5 rounded-md text-sm font-medium hover:bg-black transition-colors w-full sm:w-auto mt-2 sm:mt-0">
             Filter
           </button>
         </form>
       </div>
 
-      {/* Transactions Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 bg-gray-50 px-6 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+        {/* Desktop Header */}
+        <div className="hidden sm:grid sm:grid-cols-12 gap-4 bg-gray-50 px-6 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
           <div className="col-span-3">Date & Time</div>
           <div className="col-span-4">Description</div>
           <div className="col-span-3">Category</div>
@@ -91,23 +75,28 @@ export default async function TransactionsPage({
         ) : (
           transactions?.map((t: any) => {
             const catName = Array.isArray(t.categories) ? t.categories[0]?.name : t.categories?.name
-            
-            // Format the ISO timestamp into a readable Date & Time format
-            const formattedDate = t.transaction_date ? new Date(t.transaction_date).toLocaleString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            }) : 'N/A'
+            const formattedDate = t.transaction_date ? new Date(t.transaction_date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : 'N/A'
 
             return (
-              <div key={t.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b border-gray-100 text-sm hover:bg-gray-50 transition-colors">
-                <div className="col-span-3 text-gray-600 font-medium">{formattedDate}</div>
-                <div className="col-span-4 font-medium text-gray-900">{t.description}</div>
-                <div className="col-span-3 text-gray-600">{catName || 'Uncategorized'}</div>
-                <div className="col-span-2 text-right font-semibold text-gray-900">{userCurrency}{t.amount.toFixed(2)}</div>
+              <div key={t.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:gap-4 px-4 sm:px-6 py-4 border-b border-gray-100 text-sm hover:bg-gray-50 transition-colors">
+                
+                {/* Mobile View */}
+                <div className="flex justify-between items-start sm:hidden mb-1">
+                  <div>
+                    <div className="font-bold text-gray-900 text-base">{t.description}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{formattedDate}</div>
+                  </div>
+                  <div className="font-bold text-gray-900 text-base">{userCurrency}{t.amount.toFixed(2)}</div>
+                </div>
+                <div className="sm:hidden mt-1">
+                  <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md">{catName || 'Uncategorized'}</span>
+                </div>
+
+                {/* Desktop View */}
+                <div className="hidden sm:block sm:col-span-3 text-gray-600 font-medium">{formattedDate}</div>
+                <div className="hidden sm:block sm:col-span-4 font-medium text-gray-900">{t.description}</div>
+                <div className="hidden sm:block sm:col-span-3 text-gray-600">{catName || 'Uncategorized'}</div>
+                <div className="hidden sm:block sm:col-span-2 text-right font-semibold text-gray-900">{userCurrency}{t.amount.toFixed(2)}</div>
               </div>
             )
           })

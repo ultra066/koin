@@ -20,7 +20,9 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [userName, setUserName] = useState<string>('User')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
+  // Fetch User
   useEffect(() => {
     async function fetchUser() {
       const supabase = createClient()
@@ -39,6 +41,11 @@ export default function DashboardLayout({
     fetchUser()
   }, [])
 
+  // Auto-close sidebar on mobile when navigating
+  useEffect(() => {
+    setIsSidebarOpen(false)
+  }, [pathname])
+
   async function signOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -54,18 +61,45 @@ export default function DashboardLayout({
   ]
 
   return (
-    <div className={`flex h-screen bg-gray-100 overflow-hidden ${poppins.className}`}>
+    <div className={`flex h-screen bg-gray-50 overflow-hidden ${poppins.className}`}>
+      
+      {/* Mobile Top Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-4 shadow-sm">
+        <Link href="/dashboard" className="text-2xl font-black tracking-tight text-gray-900">
+          Koin.
+        </Link>
+        <button 
+          onClick={() => setIsSidebarOpen(true)} 
+          className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Darkened Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 flex flex-col transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200">
           <Link href="/dashboard" className="text-2xl font-black tracking-tight text-gray-900 hover:text-gray-600 transition-colors">
             Koin.
           </Link>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-gray-900">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
         </div>
         
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navLinks.map((link) => {
-            const isActive = pathname === link.href
+            const isActive = pathname === link.href || pathname.startsWith(`${link.href}/`)
             return (
               <Link 
                 key={link.href}
@@ -95,8 +129,8 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-8">
+      <main className="flex-1 overflow-y-auto w-full pt-16 lg:pt-0">
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto">
           {children} 
         </div>
       </main>

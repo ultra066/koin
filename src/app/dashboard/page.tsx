@@ -22,7 +22,6 @@ export default async function DashboardOverview() {
   let userCurrency = '$' // Default fallback
   
   if (user) {
-    // Get Budget Rules
     const { data: settingsData } = await supabase
       .from('user_settings')
       .select('*')
@@ -31,7 +30,6 @@ export default async function DashboardOverview() {
       
     if (settingsData) settings = settingsData
 
-    // Get Profile Currency
     const { data: profileData } = await supabase
       .from('profiles')
       .select('currency')
@@ -54,14 +52,13 @@ export default async function DashboardOverview() {
     return sum + item.amount 
   }, 0) || 0
 
-  // 3. Fetch Transactions (Added categories(name) for the Bar Chart)
+  // 3. Fetch Transactions
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
   const { data: transactions } = await supabase
     .from('transactions')
     .select('category_id, amount, transaction_date, categories ( name, group_type )')
     .gte('transaction_date', currentMonthStart)
 
-  // Fetch categories with monthly budgets for the notification dropdown checks
   const { data: categories } = await supabase
     .from('categories')
     .select('id, name, group_type, monthly_budgets(allocated_amount, period_start)')
@@ -71,13 +68,14 @@ export default async function DashboardOverview() {
     return Array.isArray(cats) ? cats[0]?.group_type : cats.group_type
   }
 
-  // 50/30/20 (or Custom Strategy) Processing
+  // 50/30/20 Processing
   const spentNeeds = transactions?.filter(t => getGroup(t.categories) === 'needs').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentWants = transactions?.filter(t => getGroup(t.categories) === 'wants').reduce((sum, t) => sum + t.amount, 0) || 0
   const spentSavings = transactions?.filter(t => getGroup(t.categories) === 'savings').reduce((sum, t) => sum + t.amount, 0) || 0
   
   const totalVariableSpent = spentNeeds + spentWants + spentSavings
-  // Only subtract the actual logged transactions so paid bills aren't counted twice
+  
+  // Fixed Balance Calculation: Only subtract logged transactions (which now includes paid fixed bills)
   const safeToSpend = totalIncome - totalVariableSpent
 
   // 4. Group transactions by Category Name for the Bar Chart
@@ -90,7 +88,7 @@ export default async function DashboardOverview() {
 
   const categoryData = Object.keys(categorySpending || {})
     .map(name => ({ name, amount: categorySpending[name] }))
-    .sort((a, b) => b.amount - a.amount) // Sort highest spending first
+    .sort((a, b) => b.amount - a.amount)
 
   // 5. Group transactions by date for the Line Graph
   const dailySpending = transactions?.reduce((acc: any, t) => {
@@ -106,25 +104,26 @@ export default async function DashboardOverview() {
   }))
 
   return (
-    <div className={`space-y-8 ${poppins.className}`}>
-      <div className="flex items-start justify-between">
+    <div className={`space-y-6 sm:space-y-8 ${poppins.className}`}>
+      
+      {/* Responsive Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 mt-2">Your real-time cash flow and allocation breakdown.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+          <p className="text-xs sm:text-base text-gray-500 mt-1">Your real-time cash flow and allocation breakdown.</p>
         </div>
         
-        {/* Header Actions: Notification Bell & Profile Settings */}
-        <div className="flex items-center gap-3">
+        {/* Actions - shrink-0 prevents the buttons from shrinking when the text wraps */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 mt-1 sm:mt-0">
           <NotificationDropdown 
             fixedCosts={fixed || []} 
             categories={categories || []} 
             transactions={transactions || []} 
             userCurrency={userCurrency} 
           />
-
           <Link 
             href="/dashboard/profile" 
-            className="flex items-center justify-center p-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-full shadow-sm transition-all text-gray-600 hover:text-gray-900"
+            className="flex items-center justify-center p-2.5 sm:p-3 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-full shadow-sm transition-all text-gray-600 hover:text-gray-900"
             title="Profile Settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -135,7 +134,7 @@ export default async function DashboardOverview() {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <Card className="shadow-sm border-none bg-[#1c1c1c] text-white">
           <CardHeader className="pb-2"><CardTitle className="text-xs font-medium text-gray-400 uppercase">Balance</CardTitle></CardHeader>
           <CardContent><div className="text-2xl font-bold">{userCurrency}{safeToSpend.toFixed(2)}</div></CardContent>
@@ -155,7 +154,7 @@ export default async function DashboardOverview() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
         <Card className="shadow-sm border-gray-200">
           <CardHeader>
             <CardTitle>Category Spending</CardTitle>
@@ -183,7 +182,7 @@ export default async function DashboardOverview() {
         </Card>
       </div>
 
-      <Card className="shadow-sm border-gray-200 mt-8">
+      <Card className="shadow-sm border-gray-200 mt-4 sm:mt-8">
         <CardHeader>
           <CardTitle>Cash Flow</CardTitle>
         </CardHeader>
