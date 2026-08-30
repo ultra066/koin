@@ -7,16 +7,12 @@ import { createClient } from '@/utils/supabase/server'
 export async function login(formData: FormData) {
   const supabase = await createClient()
   
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) {
-    redirect('/login?message=Could not authenticate user')
-  }
+  if (error) redirect('/login?error=Invalid login credentials')
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
@@ -25,16 +21,17 @@ export async function login(formData: FormData) {
 export async function signup(formData: FormData) {
   const supabase = await createClient()
   
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
+  const email = formData.get('email') as string
+  const password = formData.get('password') as string
+  const first_name = formData.get('first_name') as string
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { first_name } } // This triggers your SQL function
+  })
 
-  if (error) {
-    redirect('/login?message=Could not create account')
-  }
+  if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`)
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
