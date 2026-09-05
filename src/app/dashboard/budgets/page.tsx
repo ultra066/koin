@@ -36,7 +36,18 @@ export default async function UnifiedLedgerPage() {
 
   const renderFlexRow = (category: any) => {
     const spent = transactions?.filter(t => t.category_id === category.id).reduce((sum, t) => sum + t.amount, 0) || 0
-    const currentBudget = category.monthly_budgets?.find((b: any) => b.period_start?.startsWith(currentMonthPrefix))
+    
+    // 1. Try to find the budget for the current month
+    let currentBudget = category.monthly_budgets?.find((b: any) => b.period_start?.startsWith(currentMonthPrefix))
+
+    // 2. FALLBACK: If no budget exists for this month, grab the most recent one available
+    if (!currentBudget && category.monthly_budgets && category.monthly_budgets.length > 0) {
+      const sortedBudgets = [...category.monthly_budgets].sort((a: any, b: any) => 
+        new Date(b.period_start).getTime() - new Date(a.period_start).getTime()
+      )
+      currentBudget = sortedBudgets[0]
+    }
+
     const allocated = currentBudget?.allocated_amount || 0
     const percent = allocated > 0 ? Math.min((spent / allocated) * 100, 100) : 0
     const isOver = spent > allocated
